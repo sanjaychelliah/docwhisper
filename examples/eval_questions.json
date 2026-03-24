@@ -1,0 +1,27 @@
+[
+  {
+    "question": "What is the return window and what condition must items be in?",
+    "expected_keywords": ["30 days", "original condition", "packaging"],
+    "expected_source_hint": "returns_policy"
+  },
+  {
+    "question": "How do I reset my password?",
+    "expected_keywords": ["Forgot Password", "reset link", "email"],
+    "expected_source_hint": "technical_faq"
+  },
+  {
+    "question": "What payment methods does Acme accept?",
+    "expected_keywords": ["Visa", "Mastercard", "PayPal"],
+    "expected_source_hint": "technical_faq"
+  },
+  {
+    "question": "How long does a refund take to process?",
+    "expected_keywords": ["5", "7", "business days"],
+    "expected_source_hint": "returns_policy"
+  },
+  {
+    "question": "Where is customer data stored?",
+    "expected_keywords": ["AWS", "encrypted", "US-East"],
+    "expected_source_hint": "technical_faq"
+  }
+]

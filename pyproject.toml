@@ -1,0 +1,79 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "docwhisper"
+version = "0.1.0"
+description = "Ask your documents, get cited answers — hybrid BM25 + vector RAG with reranking"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Sanjay K Chelliah", email = "sanjaychelliah98@gmail.com" }]
+requires-python = ">=3.10"
+
+keywords = ["rag", "llm", "retrieval", "nlp", "ai", "search", "documents"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# core deps — intentionally minimal
+dependencies = [
+    "numpy>=1.24",
+    "sentence-transformers>=2.7",
+    "rank-bm25>=0.2.2",
+    "openai>=1.0",
+]
+
+[project.optional-dependencies]
+# extras — install only what you need
+pdf     = ["pypdf>=4.0"]
+html    = ["beautifulsoup4>=4.12", "lxml"]
+server  = ["fastapi>=0.110", "uvicorn[standard]>=0.29"]
+dev     = [
+    "pytest>=8.0",
+    "pytest-cov",
+    "ruff",
+    "mypy",
+]
+all = [
+    "docwhisper[pdf,html,server,dev]",
+]
+
+[project.scripts]
+docwhisper = "docwhisper.cli:main"
+
+[project.urls]
+Homepage   = "https://github.com/sanjaychelliah/docwhisper"
+Repository = "https://github.com/sanjaychelliah/docwhisper"
+Issues     = "https://github.com/sanjaychelliah/docwhisper/issues"
+
+# ---------------------------------------------------------------------------
+# Tool config
+# ---------------------------------------------------------------------------
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["docwhisper*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts   = "-v --tb=short"
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true

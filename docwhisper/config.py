@@ -39,6 +39,13 @@ class Config:
     require_citations: bool = os.getenv("DOCWHISPER_REQUIRE_CITATIONS", "true").lower() == "true"
     min_citation_count: int = int(os.getenv("DOCWHISPER_MIN_CITATIONS", "1"))
 
+    # observability
+    mlflow_tracking_uri: str = os.getenv("MLFLOW_TRACKING_URI", "")
+    mlflow_experiment: str = os.getenv("DOCWHISPER_MLFLOW_EXPERIMENT", "docwhisper")
+    wandb_project: str = os.getenv("WANDB_PROJECT", "docwhisper")
+    wandb_entity: str = os.getenv("WANDB_ENTITY", "")
+    telemetry_enabled: bool = os.getenv("DOCWHISPER_TELEMETRY", "true").lower() == "true"
+
 
 # module-level default — import this everywhere
 cfg = Config()

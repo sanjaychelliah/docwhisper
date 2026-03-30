@@ -11,12 +11,14 @@ Typical usage:
 """
 
 import logging
+import time
 from pathlib import Path
 
 from .config import cfg
 from .ingest import build_chunks, build_bm25_index, build_vector_index, load_documents, load_index, save_index
 from .retrieve import retrieve
 from .answer import Answer, generate_answer
+from .telemetry import tracker, new_trace
 
 logger = logging.getLogger(__name__)
 
@@ -91,14 +93,26 @@ class DocWhisper:
         """Ask a question. Returns an Answer object with cited text."""
         self._ensure_loaded()
 
+        trace = new_trace(question)
+        t0 = time.perf_counter()
+
         retrieved = retrieve(
             query=question,
             chunks=self._chunks,
             bm25=self._bm25,
             embeddings=self._embeddings,
+            trace=trace,
         )
 
-        return generate_answer(question, retrieved)
+        answer = generate_answer(question, retrieved, trace=trace)
+
+        trace.total_latency_ms = (time.perf_counter() - t0) * 1000.0
+        trace.citation_rate = len(answer.citations) / max(cfg.rerank_top_k, 1)
+        trace.has_citations = answer.has_citations
+
+        tracker.record(trace)
+
+        return answer
 
     # ------------------------------------------------------------------
     # Convenience

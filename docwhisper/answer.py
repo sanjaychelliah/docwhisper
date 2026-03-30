@@ -5,12 +5,18 @@ The prompt forces the model to cite chunk IDs inline [1], [2] etc.
 If the answer has no citations, we flag it rather than silently return garbage.
 """
 
+from __future__ import annotations
+
 import logging
 import re
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from .config import cfg
 from .retrieve import RetrievedChunk
+
+if TYPE_CHECKING:
+    from .telemetry import RequestTrace
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +34,7 @@ class Answer:
     retrieved_chunks: list[RetrievedChunk]
     has_citations: bool = False
     model: str = ""
+    trace: RequestTrace | None = field(default=None, repr=False)
 
     def format(self) -> str:
         """Pretty-print for CLI output."""
@@ -89,8 +96,8 @@ def _build_context(chunks: list[RetrievedChunk]) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _call_llm(system: str, user: str) -> tuple[str, str]:
-    """Returns (response_text, model_name). Works with any OpenAI-compatible API."""
+def _call_llm(system: str, user: str) -> tuple[str, str, int, int]:
+    """Returns (response_text, model_name, prompt_tokens, completion_tokens)."""
     try:
         from openai import OpenAI
     except ImportError:
@@ -113,8 +120,10 @@ def _call_llm(system: str, user: str) -> tuple[str, str]:
         temperature=cfg.llm_temperature,
         max_tokens=cfg.llm_max_tokens,
     )
-    print('This is the response----', response)
-    return response.choices[0].message.content, response.model
+    usage = response.usage
+    prompt_tokens = usage.prompt_tokens if usage else 0
+    completion_tokens = usage.completion_tokens if usage else 0
+    return response.choices[0].message.content, response.model, prompt_tokens, completion_tokens
 
 
 # ---------------------------------------------------------------------------
@@ -144,7 +153,12 @@ def _parse_citations(answer_text: str, chunks: list[RetrievedChunk]) -> list[dic
 # ---------------------------------------------------------------------------
 
 
-def generate_answer(question: str, retrieved: list[RetrievedChunk]) -> Answer:
+def generate_answer(
+    question: str,
+    retrieved: list[RetrievedChunk],
+    *,
+    trace: RequestTrace | None = None,
+) -> Answer:
     """Generate a cited answer from retrieved chunks."""
     if not retrieved:
         return Answer(
@@ -153,13 +167,27 @@ def generate_answer(question: str, retrieved: list[RetrievedChunk]) -> Answer:
             citations=[],
             retrieved_chunks=[],
             has_citations=False,
+            trace=trace,
         )
 
     context = _build_context(retrieved)
     user_prompt = CONTEXT_TEMPLATE.format(chunks=context, question=question)
 
     logger.info("Calling LLM (%s)...", cfg.llm_model)
-    answer_text, model_used = _call_llm(SYSTEM_PROMPT, user_prompt)
+
+    if trace is not None:
+        from .telemetry import tracker, cost_estimator
+        with tracker.span("llm_call", trace):
+            answer_text, model_used, prompt_tokens, completion_tokens = _call_llm(SYSTEM_PROMPT, user_prompt)
+        trace.llm_latency_ms = next(
+            (s.latency_ms for s in reversed(trace.spans) if s.name == "llm_call"), 0.0
+        )
+        trace.tokens_prompt = prompt_tokens
+        trace.tokens_completion = completion_tokens
+        trace.model = model_used
+        trace.estimated_cost_usd = cost_estimator.estimate(model_used, prompt_tokens, completion_tokens)
+    else:
+        answer_text, model_used, _, _ = _call_llm(SYSTEM_PROMPT, user_prompt)
 
     citations = _parse_citations(answer_text, retrieved)
     has_citations = len(citations) >= cfg.min_citation_count
@@ -178,4 +206,5 @@ def generate_answer(question: str, retrieved: list[RetrievedChunk]) -> Answer:
         retrieved_chunks=retrieved,
         has_citations=has_citations,
         model=model_used,
+        trace=trace,
     )

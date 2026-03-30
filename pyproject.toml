@@ -42,8 +42,12 @@ dev     = [
     "ruff",
     "mypy",
 ]
+observability = [
+    "mlflow>=2.13",
+    "wandb>=0.17",
+]
 all = [
-    "docwhisper[pdf,html,server,dev]",
+    "docwhisper[pdf,html,server,dev,observability]",
 ]
 
 [project.scripts]

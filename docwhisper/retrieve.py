@@ -8,8 +8,13 @@ The pipeline:
   4. Cross-encoder reranking — slow but precise, runs over top candidates only
 """
 
+from __future__ import annotations
+
 import logging
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
+
+if TYPE_CHECKING:
+    from .telemetry import RequestTrace
 
 import numpy as np
 
@@ -145,21 +150,36 @@ def retrieve(
     chunks: list[Chunk],
     bm25,
     embeddings: np.ndarray,
+    *,
+    trace: RequestTrace | None = None,
 ) -> list[RetrievedChunk]:
     """
     Full hybrid retrieval pipeline.
     Returns top-k reranked chunks.
     """
+    from .telemetry import tracker, span_or_null
+
     logger.info("BM25 search (top %d)...", cfg.bm25_top_k)
-    bm25_results = bm25_search(query, bm25, chunks, top_k=cfg.bm25_top_k)
+    with span_or_null("bm25_search", trace, tracker):
+        bm25_results = bm25_search(query, bm25, chunks, top_k=cfg.bm25_top_k)
 
     logger.info("Vector search (top %d)...", cfg.vector_top_k)
-    vector_results = vector_search(query, embeddings, chunks, top_k=cfg.vector_top_k)
+    with span_or_null("vector_search", trace, tracker):
+        vector_results = vector_search(query, embeddings, chunks, top_k=cfg.vector_top_k)
 
     merged = hybrid_merge(bm25_results, vector_results)
     logger.info("Merged %d unique candidates", len(merged))
 
-    results = rerank(query, merged, top_k=cfg.rerank_top_k)
+    with span_or_null("rerank", trace, tracker):
+        results = rerank(query, merged, top_k=cfg.rerank_top_k)
     logger.info("Returning %d reranked chunks", len(results))
+
+    if trace is not None and results:
+        trace.top_rerank_score = results[0].score
+        trace.retrieval_latency_ms = sum(
+            s.latency_ms for s in trace.spans
+            if s.name in ("bm25_search", "vector_search", "rerank")
+            and s.end_time is not None
+        )
 
     return results

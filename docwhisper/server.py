@@ -15,6 +15,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from .pipeline import DocWhisper
+from .telemetry import tracker
 
 app = FastAPI(
     title="docwhisper",
@@ -68,6 +69,11 @@ class IngestResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+
+
+@app.get("/metrics")
+def metrics():
+    return tracker.stats()
 
 
 @app.get("/health")

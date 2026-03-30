@@ -29,6 +29,31 @@ the original receipt [1]. Refunds are processed within
 
 ---
 
+## Observability
+
+docwhisper tracks latency, token usage, cost, and citation quality per request. Telemetry is on by default and requires no external service — it always emits structured JSON debug logs. Optionally ship metrics to **MLflow** or **Weights & Biases**.
+
+**MLflow quickstart:**
+
+```bash
+pip install -e ".[observability]"
+mlflow ui --port 5000 &
+export MLFLOW_TRACKING_URI=http://localhost:5000
+docwhisper ask "What is the return policy?"
+# open http://localhost:5000 — one run logged per query
+```
+
+**Live metrics endpoint** (REST server only):
+
+```bash
+curl http://localhost:8000/metrics
+# {"request_count": 42, "p50_latency_ms": 1240, "p95_latency_ms": 2890, ...}
+```
+
+Disable entirely with `DOCWHISPER_TELEMETRY=false`. See [docs/observability.md](docs/observability.md) for the full guide including W&B setup, regression gating, and Docker Compose.
+
+---
+
 ## Why this exists
 
 Most RAG tutorials use pure vector search. That's fine for semantic queries but misses exact keyword matches ("what is the Section 4.2 clause?"). BM25 catches those. Combining both, then reranking with a cross-encoder, is what actually works in production.

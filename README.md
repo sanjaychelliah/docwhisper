@@ -43,6 +43,9 @@ docwhisper ask "What is the return policy?"
 # open http://localhost:5000 — one run logged per query
 ```
 
+![MLflow run showing per-request telemetry](docs/mlflow-run.jpg)
+*MLflow run view showing all 9 per-request metrics: latency breakdowns, token counts, estimated cost, citation rate, and rerank score.*
+
 **Live metrics endpoint** (REST server only):
 
 ```bash
